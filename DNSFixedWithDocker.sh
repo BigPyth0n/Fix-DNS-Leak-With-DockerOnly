@@ -1,21 +1,46 @@
 #!/bin/bash
 set -euo pipefail
 
+# بررسی دسترسی root
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root (use sudo)."
+    exit 1
+fi
+
+# ========== نصب ابزارهای ضروری ==========
+if ! command -v dig &> /dev/null; then
+    echo "dig not found. Installing dnsutils..."
+    apt install -y dnsutils
+fi
+
 # ========== نصب خودکار Docker ==========
 if ! command -v docker &> /dev/null; then
     echo "Docker not found. Installing Docker..."
-    sudo apt update -y
-    sudo apt install -y ca-certificates curl gnupg
-    sudo install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    sudo apt update -y
-    apt-cache policy docker-ce   # نمایش اطلاعات نسخه (اختیاری)
-    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    apt update -y
+    apt install -y ca-certificates curl gnupg
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+    apt update -y
+    apt-cache policy docker-ce
+    apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     echo "Docker installation completed."
 else
     echo "Docker is already installed."
+fi
+
+# ========== راه‌اندازی DNS proxy با cloudflared ==========
+if ! docker ps -a --format '{{.Names}}' | grep -q "^cloudflared$"; then
+    echo "Starting cloudflared DNS proxy container..."
+    docker run -d \
+        --name cloudflared \
+        --restart unless-stopped \
+        -p 127.0.0.1:53:53/udp \
+        cloudflare/cloudflared:latest proxy-dns
+    echo "cloudflared container started."
+else
+    echo "cloudflared container already exists. Skipping."
 fi
 
 # ========== تست DNS ==========
@@ -44,7 +69,11 @@ echo -n "1.1.1.1   -> "; dig +short TXT whoami.cloudflare @1.1.1.1 || true
 echo
 
 echo "== resolvectl summary =="
-resolvectl status | sed -n '1,120p'
+if command -v resolvectl &> /dev/null; then
+    resolvectl status 2>/dev/null | sed -n '1,120p' || echo "resolvectl status failed"
+else
+    echo "resolvectl not available"
+fi
 echo
 
 echo "== dnsleaktest style lookups =="
