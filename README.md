@@ -47,37 +47,7 @@ sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/BigPyth0n/Fix-DNS-L
 ## 🧪 تست نهایی (دستی)
 
 اسکریپت به‌صورت خودکار تست اولیه انجام می‌دهد.  
-برای تست دستی و سریع می‌توانید دستورات زیر را بعد از اتمام نصب اجرا کنید:
 
-```bash
-# چک کن resolv.conf به systemd-resolved لینک شده باشد
-readlink -f /etc/resolv.conf    # باید باشد: /run/systemd/resolve/resolv.conf
-
-# مطمئن شو cloudflared روی پورت 53 فعال است
-ss -tulnp | grep '127.0.0.1:53'
-
-# تست رزولوشن مستقیم از cloudflared
-dig +short @127.0.0.1 google.com
-
-# تست رزولوشن از مسیر سیستم
-dig +short google.com
-```
-
-## 🧪 تست نهایی (به صورت اسکریپتی)
-
-اسکریپت به‌صورت خودکار تست اولیه انجام می‌دهد.  
-
-
-```bash
-bash <(curl -fsSL -H 'Cache-Control: no-cache' https://raw.githubusercontent.com/BigPyth0n/Fix-DNS-Leak-With-BigPyth0n/refs/heads/main/TestFixed.sh)
-```
-
----
-
-و در نهایت برای اطمینان نهایی:  
-🔗 [dnsleaktest.com](https://dnsleaktest.com) → گزینه **Extended Test** را انتخاب کنید.  
-
----
 
 ## 📁 آدرس GitHub
 
